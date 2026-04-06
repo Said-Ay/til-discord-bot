@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+
 from .models import Til
 
-class ITilRepository (ABC):
+
+class ITilRepository(ABC):
     """TILデータを保存するためのインターフェース"""
 
     @abstractmethod

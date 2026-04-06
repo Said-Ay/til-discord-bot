@@ -1,9 +1,11 @@
 import os
 from dataclasses import dataclass
+
 from dotenv import load_dotenv
 
-#.envファイルを読み込む
+# .envファイルを読み込む
 load_dotenv()
+
 
 @dataclass(frozen=True)
 class Config:
@@ -22,17 +24,21 @@ class Config:
         github_repo = os.getenv("GITHUB_REPO")
         github_branch = os.getenv("GITHUB_BRANCH", "main")
 
-        #必須項目のチェック
-        if not all ([discord_token, til_channel_id_str, github_token, github_repo]):
-            raise ValueError("必須の環境変数が不足しています(DISCORD_TOKEN, TIL_CHANNEL_ID, GITHUB_TOKEN, GITHUB_REPO)")
-        
+        # 必須項目のチェック
+        if not all([discord_token, til_channel_id_str, github_token, github_repo]):
+            raise ValueError(
+                "必須の環境変数が不足しています"
+                "(DISCORD_TOKEN, TIL_CHANNEL_ID, GITHUB_TOKEN, GITHUB_REPO)"
+            )
+
         return cls(
             discord_token=discord_token,
             til_channel_id=int(til_channel_id_str),
             github_token=github_token,
             github_repo=github_repo,
-            github_branch=github_branch
+            github_branch=github_branch,
         )
-    
-    #アプリ全体で使いまわせるようにインスタンスを作成しておく
+
+
+# アプリ全体で使い回せるようにインスタンスを作成しておく
 config = Config.from_env()

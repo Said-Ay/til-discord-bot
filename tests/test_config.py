@@ -1,4 +1,3 @@
-import os
 import pytest
 from tilbot.config import Config
 
