@@ -10,3 +10,7 @@ __pycache__/
 .env
 *.log
 
+# Python build
+build/
+dist/
+*.egg-info/
