@@ -38,7 +38,3 @@ class Config:
             github_repo=github_repo,
             github_branch=github_branch,
         )
-
-
-# アプリ全体で使い回せるようにインスタンスを作成しておく
-config = Config.from_env()

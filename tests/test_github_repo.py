@@ -69,3 +69,26 @@ def test_save_creates_monthly_file_when_missing() -> None:
     assert "first content" in kwargs["content"]
 
     mock_repo.update_file.assert_not_called()
+
+
+def test_save_raises_when_monthly_path_is_directory() -> None:
+    config = _make_config()
+    til = Til(content="content", created_at=datetime(2026, 4, 7, 9, 30))
+
+    mock_repo = MagicMock()
+    mock_repo.get_contents.return_value = [MagicMock()]
+
+    mock_client = MagicMock()
+    mock_client.get_repo.return_value = mock_repo
+
+    with patch("tilbot.infrastructure.github_repo.Github", return_value=mock_client):
+        repository = GithubTilRepository(config)
+
+        try:
+            repository.save(til)
+            assert False, "Expected ValueError to be raised"
+        except ValueError as exc:
+            assert "Expected a file path but got directory" in str(exc)
+
+    mock_repo.update_file.assert_not_called()
+    mock_repo.create_file.assert_not_called()

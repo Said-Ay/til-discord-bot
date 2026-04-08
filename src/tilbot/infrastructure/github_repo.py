@@ -22,7 +22,11 @@ class GithubTilRepository(ITilRepository):
 
         try:
             #既存ファイルがある場合は追記して更新する
-            file_obj = self._repo.get_contents(path, ref=self._config.github_branch)
+            file_obj_or_list = self._repo.get_contents(path, ref=self._config.github_branch)
+            if isinstance(file_obj_or_list, list):
+                raise ValueError(f"Expected a file path but got directory: {path}")
+
+            file_obj = file_obj_or_list
             existing_text = file_obj.decoded_content.decode("utf-8")
             updated_text = self._append_entry(existing_text, new_entry)
             self._repo.update_file(
