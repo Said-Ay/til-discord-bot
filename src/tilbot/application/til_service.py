@@ -1,4 +1,5 @@
 import asyncio
+import re
 from datetime import datetime, timedelta, timezone
 
 from tilbot.domain.models import Til
@@ -11,7 +12,8 @@ class TilService:
 
     async def process_message(self, content: str, created_at: datetime) -> None:
         jst_created_at = self._to_jst(created_at)
-        til = Til(content=content, created_at=jst_created_at)
+        sanitized_content = self._sanitize_content(content)
+        til = Til(content=sanitized_content, created_at=jst_created_at)
         await asyncio.to_thread(self.til_repository.save, til)
 
     @staticmethod
@@ -21,3 +23,11 @@ class TilService:
             # Discord timestamp should be aware, but treat naive input as UTC safely.
             dt = dt.replace(tzinfo=timezone.utc)
         return dt.astimezone(jst)
+
+    @staticmethod
+    def _sanitize_content(content: str) -> str:
+        # Replace Discord mention syntaxes to avoid persisting internal IDs.
+        sanitized = re.sub(r"<#\d+>", "#channel", content)
+        sanitized = re.sub(r"<@!?(\d+)>", "@user", sanitized)
+        sanitized = re.sub(r"<@&(\d+)>", "@role", sanitized)
+        return sanitized

@@ -2,7 +2,7 @@
 
 TIL (Today I Learned) を Discord で記録・参照するためのボットです。
 
-現在は初期化直後の最小スケルトンで、実装コードは未着手です。
+Discord の `#til` チャンネル投稿を受け取り、GitHub リポジトリの月次 Markdown (`YYYY-MM.md`) に追記保存します。
 
 ## Requirements
 
@@ -12,7 +12,7 @@ TIL (Today I Learned) を Discord で記録・参照するためのボットで�
 
 1. 仮想環境を作成して有効化
 2. パッケージをインストール
-3. アーキテクチャ設計後に実装開始
+3. `.env` を作成して必要な環境変数を設定
 
 ## Install
 
@@ -20,6 +20,19 @@ TIL (Today I Learned) を Discord で記録・参照するためのボットで�
 python -m pip install -e .
 ```
 
-## Notes
+## Environment Variables
 
-- Discord 接続処理はまだ追加していません。
+`.env.example` をコピーして `.env` を作成し、以下を設定します。
+
+- `DISCORD_TOKEN`
+- `TIL_CHANNEL_ID`
+- `GITHUB_TOKEN`
+- `GITHUB_REPO`
+- `GITHUB_BRANCH` (任意、既定値: `main`)
+
+## Security Notes
+
+- `.env` は Git 追跡対象外です。絶対にコミットしないでください。
+- Discord の生メンション（`<#...>`, `<@...>`, `<@&...>`）は保存時にサニタイズされます。
+- トークン漏洩が疑われる場合は、Discord Token と GitHub PAT を即時ローテーションしてください。
+
