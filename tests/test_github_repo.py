@@ -20,7 +20,7 @@ def _make_config() -> Config:
 
 def test_save_updates_existing_monthly_file() -> None:
     config = _make_config()
-    til = Til(content="new content", created_at=datetime(2026, 4, 7, 9, 30))
+    til = Til(message_id=123456, content="new content", created_at=datetime(2026, 4, 7, 9, 30))
 
     mock_repo = MagicMock()
     mock_file = MagicMock()
@@ -47,7 +47,7 @@ def test_save_updates_existing_monthly_file() -> None:
 
 def test_save_creates_monthly_file_when_missing() -> None:
     config = _make_config()
-    til = Til(content="first content", created_at=datetime(2026, 4, 7, 9, 30))
+    til = Til(message_id=123456, content="first content", created_at=datetime(2026, 4, 7, 9, 30))
 
     mock_repo = MagicMock()
     mock_repo.get_contents.side_effect = UnknownObjectException(
@@ -73,7 +73,7 @@ def test_save_creates_monthly_file_when_missing() -> None:
 
 def test_save_raises_when_monthly_path_is_directory() -> None:
     config = _make_config()
-    til = Til(content="content", created_at=datetime(2026, 4, 7, 9, 30))
+    til = Til(message_id=123456, content="content", created_at=datetime(2026, 4, 7, 9, 30))
 
     mock_repo = MagicMock()
     mock_repo.get_contents.return_value = [MagicMock()]
