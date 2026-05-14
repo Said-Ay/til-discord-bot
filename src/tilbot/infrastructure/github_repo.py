@@ -45,6 +45,15 @@ class GithubTilRepository(ITilRepository):
                 branch=self._config.github_branch,
             )
 
+    def update(self, til: Til) -> None:
+        """TILの投稿を更新する"""
+        pass
+
+    def delete(self, til: Til) -> None:
+        """TILの投稿を削除する"""
+        pass
+
+    
     @staticmethod
     def _build_monthly_path(created_at: datetime) ->str:
         """TILの作成日時から月次ファイルのパスを生成する"""

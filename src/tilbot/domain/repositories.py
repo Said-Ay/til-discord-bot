@@ -10,3 +10,11 @@ class ITilRepository(ABC):
     def save(self, til: Til) -> None:
         """TILの投稿を保存する"""
         pass
+    @abstractmethod
+    def update(self,til: Til) -> None:
+        """TILの投稿を更新する"""
+        pass    
+    @abstractmethod
+    def delete(self,til: Til) -> None:
+        """TILの投稿を削除する"""
+        pass

@@ -62,3 +62,28 @@ def test_process_message_sanitizes_discord_mentions() -> None:
     assert "#channel" in saved_til.content
     assert "@user" in saved_til.content
     assert "@role" in saved_til.content
+
+
+def test_update_message_calls_repository_update_once() -> None:
+    mock_repo = MagicMock()
+    service = TilService(mock_repo)
+
+    created_at = datetime(2026, 4, 7, 0, 0, tzinfo=timezone.utc)
+    asyncio.run(service.update_message("updated", created_at, message_id=987654))
+
+    mock_repo.update.assert_called_once()
+    saved_til = mock_repo.update.call_args.args[0]
+    assert saved_til.message_id == 987654
+    assert saved_til.content == "updated"
+
+
+def test_delete_message_calls_repository_delete_once() -> None:
+    mock_repo = MagicMock()
+    service = TilService(mock_repo)
+
+    created_at = datetime(2026, 4, 7, 0, 0, tzinfo=timezone.utc)
+    asyncio.run(service.delete_message(created_at, message_id=987654))
+
+    mock_repo.delete.assert_called_once()
+    saved_til = mock_repo.delete.call_args.args[0]
+    assert saved_til.message_id == 987654
