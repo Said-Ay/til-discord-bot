@@ -7,7 +7,7 @@ from github.GithubException import UnknownObjectException
 from tilbot.config import Config
 from tilbot.domain.models import Til
 from tilbot.domain.repositories import ITilRepository
-
+from tilbot.domain.formatters import format_entry
 
 class GithubTilRepository(ITilRepository):
     def __init__(self, config: Config):
@@ -18,7 +18,7 @@ class GithubTilRepository(ITilRepository):
     def save(self, til: Til) -> None:
         """TILの投稿をGitHubリポジトリに保存する"""
         path = self._build_monthly_path(til.created_at)
-        new_entry = self._format_entry(til)
+        new_entry = format_entry(til) #TILを保存フォーマットに変換する
 
         try:
             #既存ファイルがある場合は追記して更新する
@@ -59,11 +59,6 @@ class GithubTilRepository(ITilRepository):
         """TILの作成日時から月次ファイルのパスを生成する"""
         return created_at.strftime("%Y-%m.md")
     
-    @staticmethod
-    def _format_entry(til:Til) -> str:
-        """TILの内容をマークダウン形式のエントリーに整形する"""
-        header = til.created_at.strftime("## %Y-%m-%d %H:%M")
-        return f"{header}\n\n{til.content.strip()}\n"
 
     @staticmethod
     def _append_entry(existing_text: str, new_entry: str) -> str:

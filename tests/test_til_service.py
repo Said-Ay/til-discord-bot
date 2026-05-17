@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 from tilbot.application.til_service import TilService
+from tilbot.domain.formatters import format_entry
+from tilbot.domain.models import Til
 
 
 def test_process_message_calls_repository_save_once() -> None:
@@ -87,3 +89,18 @@ def test_delete_message_calls_repository_delete_once() -> None:
     mock_repo.delete.assert_called_once()
     saved_til = mock_repo.delete.call_args.args[0]
     assert saved_til.message_id == 987654
+
+
+def test_format_entry_includes_msg_id_and_markers() -> None:
+    til = Til(
+        message_id=123456,
+        content="hello",
+        created_at=datetime(2026, 5, 16, 10, 30, tzinfo=timezone.utc),
+    )
+
+    entry = format_entry(til)
+
+    assert "## 2026-05-16 10:30 <!-- msg_id: 123456 -->" in entry
+    assert "<!-- end_header -->" in entry
+    assert "hello" in entry
+    assert "<!-- end_msg -->" in entry
