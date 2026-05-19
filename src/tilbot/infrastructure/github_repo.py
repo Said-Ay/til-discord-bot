@@ -2,14 +2,21 @@ from __future__ import annotations
 
 from datetime import datetime 
 from github import Github
-from github.GithubException import UnknownObjectException
+from github.GithubException import GithubException, UnknownObjectException
 
 from tilbot.config import Config
 from tilbot.domain.models import Til
 from tilbot.domain.repositories import ITilRepository
 from tilbot.domain.formatters import format_entry
+from tilbot.infrastructure.markdown_utils import (
+    EntryNotFoundError,
+    delete_by_message_id,
+    update_body_by_message_id,
+)
 
 class GithubTilRepository(ITilRepository):
+    _MAX_RETRIES = 3
+
     def __init__(self, config: Config):
         self._config = config
         self._client = Github(config.github_token)
@@ -47,13 +54,60 @@ class GithubTilRepository(ITilRepository):
 
     def update(self, til: Til) -> None:
         """TILの投稿を更新する"""
-        pass
+        path = self._build_monthly_path(til.created_at)
+        self._apply_update_or_delete(
+            path=path,
+            message_id=til.message_id,
+            new_body=til.content,
+            is_delete=False)
 
     def delete(self, til: Til) -> None:
         """TILの投稿を削除する"""
-        pass
+        path  = self._build_monthly_path(til.created_at)
+        self._apply_update_or_delete(
+            path=path,
+            message_id=til.message_id,
+            new_body="", #削除の場合は空の文字列を新しいテキストとして渡す
+            is_delete=True)
 
-    
+    def _apply_update_or_delete(
+        self,
+        *,
+        path: str, 
+        message_id: int, 
+        new_body: str, 
+        is_delete: bool
+        ) -> None:
+        """TILの投稿の更新または削除を適用する"""
+        for attempt in range(self._MAX_RETRIES):
+            try: #月次ファイルの内容を取得して、指定されたmessage_idに対応するエントリーを更新または削除する。エントリーが見つからない場合はEntryNotFoundErrorを発生させることで、存在しないTILの更新や削除を防止する
+                file_obj_or_list = self._repo.get_contents(path, ref=self._config.github_branch)
+                if isinstance(file_obj_or_list, list): #パスがディレクトリの場合はエラーを発生させることで、誤ってディレクトリを操作することを防止する
+                    raise ValueError(f"Expected a file path but got directory: {path}")
+                file_obj = file_obj_or_list #ファイルオブジェクトを取得する
+                existing_text = file_obj.decoded_content.decode("utf-8")
+                if is_delete: #削除の場合はdelete_by_message_idを呼び出して、指定されたmessage_idに対応するエントリーをマークダウンから削除する。更新の場合はupdate_body_by_message_idを呼び出して、指定されたmessage_idに対応するエントリーの本文を新しいテキストに置き換える
+                    updated_text = delete_by_message_id(existing_text, message_id)
+                    commit_message = f"chore:delete TIL {message_id}"
+                else:
+                    updated_text = update_body_by_message_id(existing_text, message_id, new_body)
+                    commit_message = f"chore:update TIL {message_id}"
+                self._repo.update_file(
+                    path=path,
+                    message=commit_message,
+                    content=updated_text,
+                    sha=file_obj.sha, #ファイルのSHAを指定して更新することで、同時編集による競合を防止する.SHAはファイルの内容が変更されるたびに変わるため、最新のSHAを取得して更新する必要がある
+                    branch=self._config.github_branch,
+                )
+                return
+            except UnknownObjectException as exc:
+                raise #ファイルが存在しない場合はエラーを発生させることで、存在しない月次ファイルの更新や削除を防止する
+            except EntryNotFoundError:
+                raise #指定されたmessage_idのエントリーが見つからない場合はエラーを発生させることで、存在しないTILの更新や削除を防止する
+            except GithubException as exc: #GitHub APIの呼び出しでエラーが発生した場合は、409 Conflict時のみリトライする
+                if exc.status == 409 and attempt < self._MAX_RETRIES - 1: #409 Conflictエラーの場合はリトライする
+                    continue
+                raise
     @staticmethod
     def _build_monthly_path(created_at: datetime) ->str:
         """TILの作成日時から月次ファイルのパスを生成する"""

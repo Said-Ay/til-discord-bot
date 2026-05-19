@@ -6,6 +6,7 @@ from github.GithubException import UnknownObjectException
 from tilbot.config import Config
 from tilbot.domain.models import Til
 from tilbot.infrastructure.github_repo import GithubTilRepository
+from tilbot.infrastructure.markdown_utils import EntryNotFoundError
 
 
 def _make_config() -> Config:
@@ -92,3 +93,105 @@ def test_save_raises_when_monthly_path_is_directory() -> None:
 
     mock_repo.update_file.assert_not_called()
     mock_repo.create_file.assert_not_called()
+
+
+def test_update_updates_existing_message_body() -> None:
+    config = _make_config()
+    til = Til(message_id=123456, content="updated body", created_at=datetime(2026, 4, 7, 9, 30))
+
+    markdown = (
+        "## 2026-05-16 10:30 <!-- msg_id: 123456 -->\n"
+        "<!-- end_header -->\n"
+        "\n"
+        "old body\n"
+        "\n"
+        "<!-- end_msg -->\n"
+    )
+
+    mock_repo = MagicMock()
+    mock_file = MagicMock()
+    mock_file.decoded_content = markdown.encode("utf-8")
+    mock_file.sha = "abc123"
+    mock_repo.get_contents.return_value = mock_file
+
+    mock_client = MagicMock()
+    mock_client.get_repo.return_value = mock_repo
+
+    with patch("tilbot.infrastructure.github_repo.Github", return_value=mock_client):
+        repository = GithubTilRepository(config)
+        repository.update(til)
+
+    mock_repo.update_file.assert_called_once()
+    kwargs = mock_repo.update_file.call_args.kwargs
+    assert "updated body" in kwargs["content"]
+    assert "old body" not in kwargs["content"]
+
+
+def test_delete_removes_message_block() -> None:
+    config = _make_config()
+    til = Til(message_id=123456, content="", created_at=datetime(2026, 4, 7, 9, 30))
+
+    markdown = (
+        "## 2026-05-16 10:30 <!-- msg_id: 123456 -->\n"
+        "<!-- end_header -->\n"
+        "\n"
+        "old body\n"
+        "\n"
+        "<!-- end_msg -->\n"
+        "\n"
+        "## 2026-05-16 10:40 <!-- msg_id: 999 -->\n"
+        "<!-- end_header -->\n"
+        "\n"
+        "keep\n"
+        "\n"
+        "<!-- end_msg -->\n"
+    )
+
+    mock_repo = MagicMock()
+    mock_file = MagicMock()
+    mock_file.decoded_content = markdown.encode("utf-8")
+    mock_file.sha = "abc123"
+    mock_repo.get_contents.return_value = mock_file
+
+    mock_client = MagicMock()
+    mock_client.get_repo.return_value = mock_repo
+
+    with patch("tilbot.infrastructure.github_repo.Github", return_value=mock_client):
+        repository = GithubTilRepository(config)
+        repository.delete(til)
+
+    mock_repo.update_file.assert_called_once()
+    kwargs = mock_repo.update_file.call_args.kwargs
+    assert "msg_id: 123456" not in kwargs["content"]
+    assert "msg_id: 999" in kwargs["content"]
+
+
+def test_update_raises_when_message_id_missing() -> None:
+    config = _make_config()
+    til = Til(message_id=123456, content="updated body", created_at=datetime(2026, 4, 7, 9, 30))
+
+    markdown = (
+        "## 2026-05-16 10:30 <!-- msg_id: 999 -->\n"
+        "<!-- end_header -->\n"
+        "\n"
+        "old body\n"
+        "\n"
+        "<!-- end_msg -->\n"
+    )
+
+    mock_repo = MagicMock()
+    mock_file = MagicMock()
+    mock_file.decoded_content = markdown.encode("utf-8")
+    mock_file.sha = "abc123"
+    mock_repo.get_contents.return_value = mock_file
+
+    mock_client = MagicMock()
+    mock_client.get_repo.return_value = mock_repo
+
+    with patch("tilbot.infrastructure.github_repo.Github", return_value=mock_client):
+        repository = GithubTilRepository(config)
+        try:
+            repository.update(til)
+            assert False, "Expected EntryNotFoundError"
+        except EntryNotFoundError:
+            pass
