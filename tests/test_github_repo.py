@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-from github.GithubException import UnknownObjectException
+from github.GithubException import GithubException, UnknownObjectException
 
 from tilbot.config import Config
 from tilbot.domain.models import Til
@@ -168,6 +168,43 @@ def test_delete_removes_message_block() -> None:
     kwargs = mock_repo.update_file.call_args.kwargs
     assert "msg_id: 123456" not in kwargs["content"]
     assert "msg_id: 999" in kwargs["content"]
+
+
+def test_delete_retries_on_409_conflict() -> None:
+    config = _make_config()
+
+    markdown = (
+        "## 2026-05-16 10:30 <!-- msg_id: 123456 -->\n"
+        "<!-- end_header -->\n"
+        "\n"
+        "body\n"
+        "\n"
+        "<!-- end_msg -->\n"
+    )
+
+    mock_file = MagicMock()
+    mock_file.decoded_content = markdown.encode("utf-8")
+    mock_file.sha = "abc123"
+
+    conflict = GithubException(409, {"message": "Conflict"}, None)
+    mock_repo = MagicMock()
+    mock_repo.get_contents.return_value = mock_file
+    # 1回目は409、2回目は成功
+    mock_repo.update_file.side_effect = [conflict, None]
+
+    mock_client = MagicMock()
+    mock_client.get_repo.return_value = mock_repo
+
+    with patch("tilbot.infrastructure.github_repo.Github", return_value=mock_client):
+        with patch.object(
+            GithubTilRepository,
+            "_current_jst",
+            return_value=datetime(2026, 5, 20, tzinfo=timezone.utc),
+        ):
+            repository = GithubTilRepository(config)
+            repository.delete(123456)
+
+    assert mock_repo.update_file.call_count == 2
 
 
 def test_update_raises_when_message_id_missing() -> None:

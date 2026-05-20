@@ -67,30 +67,42 @@ class GithubTilRepository(ITilRepository):
         reference = self._current_jst()
         for target in self._month_candidates(reference):
             path = self._build_monthly_path(target)
+            found = self._delete_in_file(path, message_id)
+            if found:
+                return
+        raise EntryNotFoundError(f"message_id {message_id} not found")
+
+    def _delete_in_file(self, path: str, message_id: int) -> bool:
+        """指定パスのファイル内から message_id のエントリを削除する。見つかって削除成功なら True、エントリ未発見なら False を返す。"""
+        for attempt in range(self._MAX_RETRIES):
             try:
                 file_obj_or_list = self._repo.get_contents(path, ref=self._config.github_branch)
                 if isinstance(file_obj_or_list, list):
                     raise ValueError(f"Expected a file path but got directory: {path}")
                 file_obj = file_obj_or_list
             except UnknownObjectException:
-                continue
+                return False
 
             existing_text = file_obj.decoded_content.decode("utf-8")
             try:
                 updated_text = delete_by_message_id(existing_text, message_id)
             except EntryNotFoundError:
-                continue
+                return False
 
-            self._repo.update_file(
-                path=path,
-                message=f"chore:delete TIL {message_id}",
-                content=updated_text,
-                sha=file_obj.sha,
-                branch=self._config.github_branch,
-            )
-            return
-
-        raise EntryNotFoundError(f"message_id {message_id} not found")
+            try:
+                self._repo.update_file(
+                    path=path,
+                    message=f"chore:delete TIL {message_id}",
+                    content=updated_text,
+                    sha=file_obj.sha,
+                    branch=self._config.github_branch,
+                )
+                return True
+            except GithubException as exc:
+                if exc.status == 409 and attempt < self._MAX_RETRIES - 1:
+                    continue
+                raise
+        return False  # 到達しないが型安全のため
 
     def _apply_update_or_delete(
         self,
