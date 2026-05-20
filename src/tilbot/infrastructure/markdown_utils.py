@@ -82,7 +82,7 @@ def delete_block(markdown: str, block: EntryBlock) -> str:
     return new_text.rstrip("\n") + "\n" #マナー：末尾の改行を1つにすることで、マークダウンのフォーマットを維持する
 
 
-def _find_block_by_message_id(blocks: List[EntryBlock], message_id: int) -> EntryBlock:
+def _find_block_by_message_id(blocks: list[EntryBlock], message_id: int) -> EntryBlock:
     for block in blocks:
         if block.message_id == message_id:
             return block
