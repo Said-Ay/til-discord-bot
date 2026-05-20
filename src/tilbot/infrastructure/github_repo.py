@@ -1,7 +1,10 @@
 """このファイルは、GitHubリポジトリを使用してTILの投稿を保存、更新、削除するためのGithubTilRepositoryクラスを定義しています。GithubTilRepositoryはITilRepositoryインターフェースを実装しており、GitHub APIを使用して月次ファイルにTILエントリーを管理します。TILの投稿は、作成日時に基づいて月次ファイルに保存され、更新や削除も同様に月次ファイル内で行われます。エントリーの更新や削除は、指定されたmessage_idに対応するエントリーをマークダウンから検索し、必要に応じて内容を変更または削除することで実現されます。また、GitHub APIの呼び出しで競合が発生した場合にはリトライする仕組みも実装されています。"""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone 
+import logging
+from datetime import datetime, timedelta, timezone
+
+logger = logging.getLogger(__name__)
 from github import Github
 from github.GithubException import GithubException, UnknownObjectException
 
@@ -100,6 +103,7 @@ class GithubTilRepository(ITilRepository):
                 return True
             except GithubException as exc:
                 if exc.status == 409 and attempt < self._MAX_RETRIES - 1:
+                    logger.debug("409 conflict on %s, retrying (%d/%d)", path, attempt + 1, self._MAX_RETRIES)
                     continue
                 raise
         return False  # 到達しないが型安全のため
@@ -140,6 +144,7 @@ class GithubTilRepository(ITilRepository):
                 raise #指定されたmessage_idのエントリーが見つからない場合はエラーを発生させることで、存在しないTILの更新や削除を防止する
             except GithubException as exc: #GitHub APIの呼び出しでエラーが発生した場合は、409 Conflict時のみリトライする
                 if exc.status == 409 and attempt < self._MAX_RETRIES - 1: #409 Conflictエラーの場合はリトライする
+                    logger.debug("409 conflict on %s, retrying (%d/%d)", path, attempt + 1, self._MAX_RETRIES)
                     continue
                 raise
     @staticmethod

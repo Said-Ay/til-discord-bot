@@ -30,6 +30,10 @@ class Config:
                 "必須の環境変数が不足しています"
                 "(DISCORD_TOKEN, TIL_CHANNEL_ID, GITHUB_TOKEN, GITHUB_REPO)"
             )
+        if not til_channel_id_str.isdigit():
+            raise ValueError(
+                f"TIL_CHANNEL_ID は数字のみで指定してください: {til_channel_id_str!r}"
+            )
 
         return cls(
             discord_token=discord_token,

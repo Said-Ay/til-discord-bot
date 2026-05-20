@@ -1,7 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import re
-from typing import List 
 
 HEADER_WITH_ID_RE = re.compile(
     r"^##\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+<!--\s*msg_id:\s*(\d+)\s*-->\s*$"
@@ -20,21 +19,21 @@ class EntryBlock:
     end_idx: int
     text: str
 
-def parse_blocks(markdown: str) -> List[EntryBlock]:
+def parse_blocks(markdown: str) -> list[EntryBlock]:
     """マークダウンからエントリーブロックのリストを抽出する"""
     lines = markdown.splitlines(keepends=True) #行末の改行を保持して分割
-    
-    line_starts: List[int] = []    
+
+    line_starts: list[int] = []
     pos = 0
     for line in lines:
         line_starts.append(pos)
         pos += len(line) #各行の開始位置を計算してリストに保存することで、後でブロックのテキストを抽出する際にスライスのインデックスを正確に計算できるようにする
 
-    header_lines: List[int] = [
+    header_lines: list[int] = [
         i for i,line in enumerate(lines) if HEADER_ANY_RE.match(line.rstrip("\n"))
     ] #ヘッダー行のインデックスを収集
 
-    blocks: List[EntryBlock] = [] #エントリーブロックのリストを初期化
+    blocks: list[EntryBlock] = [] #エントリーブロックのリストを初期化
     for idx, line_no in enumerate(header_lines): #ヘッダー行をループして、TILエントリーのブロックを抽出する
         line = lines[line_no].rstrip("\n")
         match = HEADER_WITH_ID_RE.match(line)
