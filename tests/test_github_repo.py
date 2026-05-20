@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 from github.GithubException import UnknownObjectException
@@ -129,7 +129,6 @@ def test_update_updates_existing_message_body() -> None:
 
 def test_delete_removes_message_block() -> None:
     config = _make_config()
-    til = Til(message_id=123456, content="", created_at=datetime(2026, 4, 7, 9, 30))
 
     markdown = (
         "## 2026-05-16 10:30 <!-- msg_id: 123456 -->\n"
@@ -157,8 +156,13 @@ def test_delete_removes_message_block() -> None:
     mock_client.get_repo.return_value = mock_repo
 
     with patch("tilbot.infrastructure.github_repo.Github", return_value=mock_client):
-        repository = GithubTilRepository(config)
-        repository.delete(til)
+        with patch.object(
+            GithubTilRepository,
+            "_current_jst",
+            return_value=datetime(2026, 5, 20, tzinfo=timezone.utc),
+        ):
+            repository = GithubTilRepository(config)
+            repository.delete(123456)
 
     mock_repo.update_file.assert_called_once()
     kwargs = mock_repo.update_file.call_args.kwargs

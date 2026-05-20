@@ -15,6 +15,6 @@ class ITilRepository(ABC):
         """TILの投稿を更新する"""
         pass    
     @abstractmethod
-    def delete(self,til: Til) -> None:
+    def delete(self, message_id: int) -> None:
         """TILの投稿を削除する"""
         pass

@@ -62,6 +62,5 @@ TilBot/build_bot --> TilCog + TilService + Config
 
 ## Notes and Future Hooks
 
-- `TilService.update_message` and `TilService.delete_message` exist but are not yet wired to Discord edit/delete events in the current Cog.
 - Dependency direction is strictly from Presentation -> Application -> Domain.
   Infrastructure implements domain interfaces and is injected from the outside.

@@ -62,5 +62,4 @@ TilBot/build_bot --> TilCog + TilService + Config
 
 ## 補足
 
-- `TilService.update_message` / `delete_message` は実装済みですが、現在の Cog では Discord の編集・削除イベントにまだ接続されていません。
 - 依存方向は Presentation -> Application -> Domain を守り、Infrastructure はドメインのインターフェース実装として外から注入します。

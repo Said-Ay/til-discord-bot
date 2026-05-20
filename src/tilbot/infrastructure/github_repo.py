@@ -1,6 +1,7 @@
+"""このファイルは、GitHubリポジトリを使用してTILの投稿を保存、更新、削除するためのGithubTilRepositoryクラスを定義しています。GithubTilRepositoryはITilRepositoryインターフェースを実装しており、GitHub APIを使用して月次ファイルにTILエントリーを管理します。TILの投稿は、作成日時に基づいて月次ファイルに保存され、更新や削除も同様に月次ファイル内で行われます。エントリーの更新や削除は、指定されたmessage_idに対応するエントリーをマークダウンから検索し、必要に応じて内容を変更または削除することで実現されます。また、GitHub APIの呼び出しで競合が発生した場合にはリトライする仕組みも実装されています。"""
 from __future__ import annotations
 
-from datetime import datetime 
+from datetime import datetime, timedelta, timezone 
 from github import Github
 from github.GithubException import GithubException, UnknownObjectException
 
@@ -61,14 +62,35 @@ class GithubTilRepository(ITilRepository):
             new_body=til.content,
             is_delete=False)
 
-    def delete(self, til: Til) -> None:
+    def delete(self, message_id: int) -> None:
         """TILの投稿を削除する"""
-        path  = self._build_monthly_path(til.created_at)
-        self._apply_update_or_delete(
-            path=path,
-            message_id=til.message_id,
-            new_body="", #削除の場合は空の文字列を新しいテキストとして渡す
-            is_delete=True)
+        reference = self._current_jst()
+        for target in self._month_candidates(reference):
+            path = self._build_monthly_path(target)
+            try:
+                file_obj_or_list = self._repo.get_contents(path, ref=self._config.github_branch)
+                if isinstance(file_obj_or_list, list):
+                    raise ValueError(f"Expected a file path but got directory: {path}")
+                file_obj = file_obj_or_list
+            except UnknownObjectException:
+                continue
+
+            existing_text = file_obj.decoded_content.decode("utf-8")
+            try:
+                updated_text = delete_by_message_id(existing_text, message_id)
+            except EntryNotFoundError:
+                continue
+
+            self._repo.update_file(
+                path=path,
+                message=f"chore:delete TIL {message_id}",
+                content=updated_text,
+                sha=file_obj.sha,
+                branch=self._config.github_branch,
+            )
+            return
+
+        raise EntryNotFoundError(f"message_id {message_id} not found")
 
     def _apply_update_or_delete(
         self,
@@ -112,6 +134,26 @@ class GithubTilRepository(ITilRepository):
     def _build_monthly_path(created_at: datetime) ->str:
         """TILの作成日時から月次ファイルのパスを生成する"""
         return created_at.strftime("%Y-%m.md")
+
+    @staticmethod
+    def _current_jst() -> datetime:
+        jst = timezone(timedelta(hours=9), name="JST")
+        return datetime.now(jst)
+
+    @staticmethod
+    def _shift_month(reference: datetime, delta_months: int) -> datetime:
+        month_index = reference.month - 1 + delta_months
+        year = reference.year + month_index // 12
+        month = month_index % 12 + 1
+        return reference.replace(year=year, month=month, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    @classmethod
+    def _month_candidates(cls, reference: datetime) -> list[datetime]:
+        return [
+            cls._shift_month(reference, 0),
+            cls._shift_month(reference, -1),
+            cls._shift_month(reference, 1),
+        ]
     
 
     @staticmethod

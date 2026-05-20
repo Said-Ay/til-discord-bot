@@ -37,13 +37,9 @@ class TilService:
         til = Til(content=sanitized_content, created_at=jst_created_at, message_id=message_id) #ドメインモデルのTilを作成
         await asyncio.to_thread(self.til_repository.update, til) #リポジトリのupdateを呼び出す
         
-    async def delete_message(self,
-                              created_at: datetime,
-                              message_id: int) -> None:
-        """Discordのメッセージ内容と投稿日時を受け取って、TILとして削除する"""
-        jst_created_at = self._to_jst(created_at)
-        til = Til(content="", created_at=jst_created_at, message_id=message_id)
-        await asyncio.to_thread(self.til_repository.delete, til) #リポジトリのdeleteを呼び出す
+    async def delete_message(self, message_id: int) -> None:
+        """DiscordのメッセージIDを受け取って、TILとして削除する"""
+        await asyncio.to_thread(self.til_repository.delete, message_id) #リポジトリのdeleteを呼び出す
 
     @staticmethod
     def _to_jst(dt: datetime) -> datetime:
