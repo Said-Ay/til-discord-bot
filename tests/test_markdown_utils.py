@@ -89,3 +89,36 @@ def test_update_body_by_message_id_raises_when_missing() -> None:
 
     with pytest.raises(EntryNotFoundError):
         update_body_by_message_id(markdown, 999, "new body")
+
+
+def test_update_body_by_message_id_allows_heading_in_body() -> None:
+    markdown = (
+        "## 2026-05-16 10:30 <!-- msg_id: 123 -->\n"
+        "<!-- end_header -->\n"
+        "\n"
+        "intro\n"
+        "## body heading\n"
+        "details\n"
+        "\n"
+        "<!-- end_msg -->\n"
+    )
+
+    updated = update_body_by_message_id(markdown, 123, "new body")
+
+    assert "new body" in updated
+    assert "## body heading" not in updated
+
+
+def test_update_body_by_message_id_accepts_marker_with_trailing_spaces() -> None:
+    markdown = (
+        "## 2026-05-16 10:30 <!-- msg_id: 123 -->\n"
+        "<!-- end_header -->   \n"
+        "\n"
+        "hello\n"
+        "\n"
+        "<!-- end_msg -->   \n"
+    )
+
+    updated = update_body_by_message_id(markdown, 123, "new body")
+
+    assert "new body" in updated

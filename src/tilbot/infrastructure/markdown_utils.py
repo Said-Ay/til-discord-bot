@@ -5,7 +5,6 @@ import re
 HEADER_WITH_ID_RE = re.compile(
     r"^##\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+<!--\s*msg_id:\s*(\d+)\s*-->\s*$"
 ) #TILエントリーのヘッダーをマッチさせる正規表現。メッセージIDをキャプチャするグループを含む
-HEADER_ANY_RE = re.compile(r"^##\s+") #任意のヘッダーをマッチさせる正規表現。IDの有無に関わらずヘッダー行を識別するために使用
 
 
 class EntryNotFoundError(Exception):
@@ -29,22 +28,20 @@ def parse_blocks(markdown: str) -> list[EntryBlock]:
         line_starts.append(pos)
         pos += len(line) #各行の開始位置を計算してリストに保存することで、後でブロックのテキストを抽出する際にスライスのインデックスを正確に計算できるようにする
 
-    header_lines: list[int] = [
-        i for i,line in enumerate(lines) if HEADER_ANY_RE.match(line.rstrip("\n"))
-    ] #ヘッダー行のインデックスを収集
+    header_lines: list[tuple[int, int]] = []
+    for i, line in enumerate(lines):
+        match = HEADER_WITH_ID_RE.match(line.rstrip("\n"))
+        if match:
+            header_lines.append((i, int(match.group(1))))
 
     blocks: list[EntryBlock] = [] #エントリーブロックのリストを初期化
-    for idx, line_no in enumerate(header_lines): #ヘッダー行をループして、TILエントリーのブロックを抽出する
-        line = lines[line_no].rstrip("\n")
-        match = HEADER_WITH_ID_RE.match(line)
+    for idx, header in enumerate(header_lines): #ヘッダー行をループして、TILエントリーのブロックを抽出する
+        line_no, message_id = header
         start_idx = line_starts[line_no]
         end_idx = len(markdown)
         if idx +1 < len(header_lines):
-            next_line_no = header_lines[idx + 1]
+            next_line_no, _ = header_lines[idx + 1]
             end_idx = line_starts[next_line_no]
-        if not match:
-            continue #ヘッダー行がTILエントリーの形式にマッチしない場合はスキップする
-        message_id = int(match.group(1))
         text = markdown[start_idx:end_idx]
         blocks.append(EntryBlock(message_id=message_id, start_idx=start_idx, end_idx=end_idx, text=text))
     
@@ -60,11 +57,12 @@ def update_block_text(markdown: str, block: EntryBlock, new_body: str) -> str:
         raise ValueError("ブロックのテキストが空です")
     
     header_line = lines[0]
-    try: #ブロックのテキストから必要なマーカーを見つけるために、end_headerとend_msgの行番号を取得する。マーカーが見つからない場合はValueErrorをキャッチしてわかりやすいエラーメッセージを提供する
-        end_header_idx = lines.index("<!-- end_header -->")
-        end_msg_idx = lines.index("<!-- end_msg -->")
-    except ValueError as exc: #valueerrorをキャッチして、必要なマーカーが見つからない場合にわかりやすいエラーメッセージを提供する
-        raise ValueError("ブロックのテキストに必要なマーカーが含まれていません") from exc
+    end_header_idx = next((i for i, line in enumerate(lines) if line.strip() == "<!-- end_header -->"), -1)
+    end_msg_idx = next((i for i, line in enumerate(lines) if line.strip() == "<!-- end_msg -->"), -1)
+    if end_header_idx < 0 or end_msg_idx < 0:
+        raise ValueError("ブロックのテキストに必要なマーカーが含まれていません")
+    if end_msg_idx <= end_header_idx:
+        raise ValueError("ブロックのマーカー配置が不正です")
     end_header_line = lines[end_header_idx]
     end_msg_line = lines[end_msg_idx]
 
