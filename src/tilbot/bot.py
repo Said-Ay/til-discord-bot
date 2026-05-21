@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 
 import discord
 from discord.ext import commands
@@ -64,13 +65,15 @@ async def _health_check_handler(reader: asyncio.StreamReader, writer: asyncio.St
 
 
 async def _async_main() -> None:
-    config = Config.from_env()
+    port = int(os.environ.get("PORT", "10000"))
 
+    # Render のポートスキャンに間に合わせるため、Config 検証より先にサーバーを起動する
     server = await asyncio.start_server(
-        _health_check_handler, "0.0.0.0", config.health_check_port
+        _health_check_handler, "0.0.0.0", port
     )
-    logger.info("ヘルスチェックサーバーを起動しました: port=%d", config.health_check_port)
+    logger.info("ヘルスチェックサーバーを起動しました: port=%d", port)
 
+    config = Config.from_env()
     bot = build_bot()
 
     async with server:
