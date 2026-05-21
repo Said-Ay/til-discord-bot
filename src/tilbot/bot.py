@@ -1,4 +1,5 @@
-import logging 
+import asyncio
+import logging
 
 import discord
 from discord.ext import commands
@@ -49,10 +50,35 @@ def main() -> None:
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+    asyncio.run(_async_main())
+
+
+async def _health_check_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    """GET /healthz に 200 OK を返す最小 HTTP ハンドラー"""
+    await reader.read(1024)
+    writer.write(
+        b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nOK"
+    )
+    await writer.drain()
+    writer.close()
+
+
+async def _async_main() -> None:
     config = Config.from_env()
+
+    server = await asyncio.start_server(
+        _health_check_handler, "0.0.0.0", config.health_check_port
+    )
+    logger.info("ヘルスチェックサーバーを起動しました: port=%d", config.health_check_port)
+
     bot = build_bot()
-    #Botを起動するためのrunメソッドを呼び出し、Discordに接続してイベントループを開始する。引数にはDiscord Botのトークンを渡す。
-    bot.run(config.discord_token)
+
+    async with server:
+        await asyncio.gather(
+            server.serve_forever(),
+            bot.start(config.discord_token),
+        )
+
 
 if __name__ == "__main__":
     main()
