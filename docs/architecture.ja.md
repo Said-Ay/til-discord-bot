@@ -68,8 +68,9 @@ Presentation は Application を呼ぶだけで GitHub API を直接触らず、
 
 ### 設定と起動
 
-- **Config** ([src/tilbot/config.py](../src/tilbot/config.py)) — 環境変数から設定を読み込み、必須項目が欠けていれば起動前にエラーを出します。
+- **Config** ([src/tilbot/config.py](../src/tilbot/config.py)) — 環境変数から設定を読み込み、必須項目が欠けていれば起動前にエラーを出します。`PORT` 環境変数（省略可、既定値 `10000`）を `health_check_port` として保持します。
 - **TilBot / build_bot** ([src/tilbot/bot.py](../src/tilbot/bot.py)) — 依存オブジェクトを組み立てて Cog を登録します（手動 DI）。
+- **_async_main / _health_check_handler** ([src/tilbot/bot.py](../src/tilbot/bot.py)) — Render の Web Service として動作するため、`asyncio.start_server` で `/healthz` に HTTP 200 を返す最小 HTTP サーバーを起動し、Discord bot と同一イベントループ上で並行実行します。
 
 ---
 

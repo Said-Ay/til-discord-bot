@@ -101,6 +101,7 @@ TIL_CHANNEL_ID=123456789012345678   # 保存対象チャンネルの ID（数字
 GITHUB_TOKEN=your_github_pat
 GITHUB_REPO=owner/repository        # 例: your-name/til-notes
 GITHUB_BRANCH=main                  # 省略可（既定値: main）
+# PORT=10000                        # ヘルスチェック用 HTTP ポート。Render では自動注入されるため設定不要（既定値: 10000）
 ```
 
 > **TIL_CHANNEL_ID の確認方法**: Discord の設定 → 詳細設定 → 開発者モード を有効にし、チャンネルを右クリック →「ID をコピー」
